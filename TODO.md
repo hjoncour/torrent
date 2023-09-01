@@ -1,0 +1,7 @@
+- Add fields?
+  - info_hash
+  - filename
+  - etc...
+  - single file torrent
+  - multiple files torrnet
+- Add unit tests
