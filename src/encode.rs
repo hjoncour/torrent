@@ -8,9 +8,9 @@ fn serialize_meta_info(meta_info: &MetaInfo) -> Result<String, serde_json::Error
 }
 
 fn create_json(json: &str, name: &str) -> Result<(), std::io::Error> {
-    let folder_path = env::current_dir()?.join("encTorrents");
+    let folder_path = env::current_dir()?;
     std::fs::create_dir_all(&folder_path)?;
-    let file_path = folder_path.join(format!("{}.enctorrent", name));
+    let file_path = folder_path.join(format!("{}.json", name));
     std::fs::write(file_path, json)?;
     Ok(())
 }
