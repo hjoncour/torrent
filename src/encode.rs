@@ -9,6 +9,7 @@ enum FileType {
     Json,
     Xml,
     Yaml,
+    Torrent,
 }
 
 impl FileType {
@@ -17,6 +18,7 @@ impl FileType {
             "json" => Some(FileType::Json),
             "xml" => Some(FileType::Xml),
             "yaml" | "yml" => Some(FileType::Yaml),
+            "torrent" => Some(FileType::Torrent),
             _ => None,
         }
     }
@@ -26,6 +28,7 @@ impl FileType {
             FileType::Json => serialize_meta_info_json(input).map_err(|e| e.into()),
             FileType::Xml => serde_xml_rs::to_string(input).map_err(|e| e.into()),
             FileType::Yaml => serde_yaml::to_string(input).map_err(|e| e.into()),
+            FileType::Torrent => Ok(String::new()),
         }
     }
 }
@@ -35,20 +38,19 @@ fn serialize_meta_info_json(meta_info: &MetaInfo) -> Result<String, serde_json::
     Ok(json)
 }
 
-pub fn save_to_json_file(input: MetaInfo, output_path: Option<&str>, file_type: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
-    let name: String;
+pub fn save_to_json_file(input: MetaInfo, output_name: String, output_path: Option<&str>, file_type: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
     let output: String;
     let mut file: File;
     let mut file_path: PathBuf;
     
     match output_path {
         Some(n) => {
-            name = n.to_string();
             file_path = PathBuf::from(n);
+            file_path.push(output_name.clone());
         }
         None => {
-            name = input.info.name.clone();
-            file_path = PathBuf::from(&input.info.name);
+            file_path = PathBuf::from(&output_name);
+            file_path.push(output_name.clone());
         }
     }
 
@@ -67,10 +69,11 @@ pub fn save_to_json_file(input: MetaInfo, output_path: Option<&str>, file_type: 
         FileType::Json => "json",
         FileType::Xml => "xml",
         FileType::Yaml => "yaml",
+        FileType::Torrent => "torrent",
     });
 
     file = File::create(&file_path)?;
     file.write_all(output.as_bytes())?;
     
-    Ok(name)
+    Ok(output_name)
 }
