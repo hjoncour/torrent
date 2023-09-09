@@ -18,12 +18,12 @@ impl FromBencode for Info {
     where
         Self: Sized,
     {
-        let mut file_length = None;
-        let mut name = None;
-        let mut piece_length = None;
-        let mut pieces = None;
+        let mut file_length:    Option<String>  = None;
+        let mut name:           Option<String>  = None;
+        let mut piece_length:   Option<String>  = None;
+        let mut pieces:         Option<Vec<u8>> = None;
 
-        let mut dict_dec = object.try_into_dictionary()?;
+        let mut dict_dec: bendy::decoding::DictDecoder<'_, '_> = object.try_into_dictionary()?;
         while let Some(pair) = dict_dec.next_pair()? {
             match pair {
                 (b"length", value)          => file_length = value.try_into_integer().context("file.length").map(ToString::to_string).map(Some)?,
@@ -38,17 +38,12 @@ impl FromBencode for Info {
             }
         }
 
-        let file_length = file_length.ok_or_else(|| Error::missing_field("file_length"))?;
-        let name = name.ok_or_else(|| Error::missing_field("name"))?;
-        let piece_length = piece_length.ok_or_else(|| Error::missing_field("piece_length"))?;
-        let pieces = pieces.ok_or_else(|| Error::missing_field("pieces"))?;
+        let file_length:    String  = file_length.ok_or_else(|| Error::missing_field("file_length"))?;
+        let name:           String  = name.ok_or_else(|| Error::missing_field("name"))?;
+        let piece_length:   String  = piece_length.ok_or_else(|| Error::missing_field("piece_length"))?;
+        let pieces:         Vec<u8> = pieces.ok_or_else(|| Error::missing_field("pieces"))?;
 
         // Check that we discovered all necessary fields
-        Ok(Info {
-            file_length,
-            name,
-            piece_length,
-            pieces,
-        })
+        Ok(Info {file_length, name, piece_length, pieces})
     }
 }
