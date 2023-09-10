@@ -5,10 +5,10 @@ use crate::info::Info;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MetaInfo {
-    pub announce: String,                   // Required fields for all torrents
-    pub info: Info,                         // Required fields for all torrents
+    pub announce: Option<String>,                               // Required fields for all torrents
+    pub info: Info,                                     // Required fields for all torrents
 
-    pub announce_list:          Option<String>,         // Optional
+    pub announce_list:          Option<Vec<String>>,    // Optional
     pub comment:                Option<String>,         // Optional
     pub created_by:             Option<String>,         // Optional
     pub creation_date:          Option<u64>,            // Optional
@@ -28,7 +28,7 @@ impl FromBencode for MetaInfo {
         let mut announce:       Option<String>                = None;     // Required fields for all torrents
         let mut info:           Option<Info>                  = None;     // Required fields for all torrents
 
-        let mut announce_list:  Option<String>                = None;     // Optional Field
+        let mut announce_list:  Option<Vec<String>>           = None;     // Optional Field
         let mut comment:        Option<String>                = None;     // Optional Field
         let mut created_by:     Option<String>                = None;     // Optional Field
         let mut creation_date:  Option<u64>                   = None;     // Optional Field
@@ -40,26 +40,37 @@ impl FromBencode for MetaInfo {
 
         while let Some(pair) = dict_dec.next_pair()? {
             match pair {
-                (b"announce", value)        => announce      = String::decode_bencode_object(value).context("announce").map(Some)?,
-                (b"comment", value)         => comment       = String::decode_bencode_object(value).context("comment").map(Some)?,
-                (b"creation date", value)   => creation_date = u64::decode_bencode_object(value).context("creation_date").map(Some)?,
-                (b"http seeds", value)      => http_seeds    = Vec::decode_bencode_object(value).context("http_seeds").map(Some)?,
-                (b"info", value)            => info          = Info::decode_bencode_object(value).context("info").map(Some)?,
-                //
+                (b"announce", value)        => announce         = String::decode_bencode_object(value).context("announce").map(Some)?,
+                (b"announce_list", value)   => announce_list    = Vec::decode_bencode_object(value).context("announce_list").map(Some)?,
+                (b"comment", value)         => comment          = String::decode_bencode_object(value).context("comment").map(Some)?,
+                (b"creation date", value)   => creation_date    = u64::decode_bencode_object(value).context("creation_date").map(Some)?,
+                (b"http seeds", value)      => http_seeds       = Vec::decode_bencode_object(value).context("http_seeds").map(Some)?,
+                (b"info", value)            => info             = Info::decode_bencode_object(value).context("info").map(Some)?,
+
                 (unknown_field, value) => {
-                    let field_name = String::from_utf8_lossy(unknown_field).to_string();
+                    let field_name: String = String::from_utf8_lossy(unknown_field).to_string();
+                    let value_as_string: String;
+
+                    match &value {
+                        Object::Bytes(bytes) => {
+                            value_as_string = String::decode_bencode_object(bendy::decoding::Object::Bytes(bytes)).unwrap_or_else(|_| "Unknown".to_string());
+                        }
+                        Object::Integer(integer) => {
+                            value_as_string = u64::decode_bencode_object(bendy::decoding::Object::Integer(integer)).map(|u| u.to_string()).unwrap_or_else(|_| "Unknown".to_string());
+                        }
+                        Object::List(list) => {
+                            // Not working
+                            // value_as_string = Vec::<String>::decode_bencode_object(Object::List(list)).map(|v: Vec<String>| v.join(", ")).unwrap_or_else(|_| "Unknown".to_string());
+                            println!("list: {:#?}", list);
+                            value_as_string = "".to_owned();
+                        }
+                        Object::Dict(_) => {
+                            // Handle the case where the value is a dictionary if needed
+                            value_as_string = "Dictionary".to_string();
+                        }
+                    }
                     
-                    let value_as_string: String = match String::decode_bencode_object(value) {
-                        Ok(s) => s,
-                        Err(_) => match u64::decode_bencode_object(value) {
-                            Ok(u) => u.to_string(),
-                            Err(_) => match Vec::<String>::decode_bencode_object(value) {
-                                Ok(v) => v.join(", "),
-                                Err(_) => "Unknown value".to_string(),
-                            },
-                        },
-                    };
-                
+               
                     let tuple: (String, String) = (field_name, value_as_string);
                     if let Some(ref mut fields) = other_fields {
                         fields.push(tuple);
@@ -70,7 +81,6 @@ impl FromBencode for MetaInfo {
             }
         }
 
-        let announce: String = announce.ok_or_else(|| Error::missing_field("announce"))?;
         let info: Info = info.ok_or_else(|| Error::missing_field("info"))?;
 
         Ok(MetaInfo {
